@@ -1,0 +1,42 @@
+package transports
+
+import (
+	"context"
+
+	"github.com/go-kit/kit/log"
+	gt "github.com/go-kit/kit/transport/grpc"
+	"github.com/lucabecci/math-grpc-ms/endpoints"
+	"github.com/lucabecci/math-grpc-ms/pb"
+)
+
+type gRPCServer struct {
+	add gt.Handler
+}
+
+func NewGRPCServer(endpoints endpoints.Endpoints, logger log.Logger) pb.MathServiceServer {
+	return &gRPCServer{
+		add: gt.NewServer(
+			endpoints.Add,
+			decodeMathRequest,
+			encodeMathResponse,
+		),
+	}
+}
+
+func (s *gRPCServer) Add(ctx context.Context, req *pb.MathRequest) (*pb.MathResponse, error) {
+	_, resp, err := s.add.ServeGRPC(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp.(*pb.MathResponse), nil
+}
+
+func decodeMathRequest(_ context.Context, request interface{}) (interface{}, error) {
+	req := request.(*pb.MathRequest)
+	return endpoints.MathReq{NumA: req.NumA, NumB: req.NumB}, nil
+}
+
+func encodeMathResponse(_ context.Context, response interface{}) (interface{}, error) {
+	resp := response.(endpoints.MathRes)
+	return &pb.MathResponse{Result: resp.Result}, nil
+}
